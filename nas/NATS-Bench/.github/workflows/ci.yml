@@ -1,0 +1,60 @@
+name: Run Python Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, macos-latest]
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Lint with Black
+        run: |
+          cd ..
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            python.exe -m pip install black
+            python.exe -m black NATS-Bench/nats_bench -l 88 --check --diff
+            python.exe -m black NATS-Bench/tests -l 88 --check --diff
+          else
+            python -m pip install black
+            python --version
+            python -m black --version
+            echo $PWD
+            ls
+            python -m black NATS-Bench/nats_bench -l 88 --check --diff --verbose
+            python -m black NATS-Bench/tests -l 88 --check --diff --verbose
+          fi
+        shell: bash
+
+      - name: Install nats_bench from source
+        run: |
+          pip install .
+
+      - name: Run tests with pytest
+        run: |
+          export FAKE_TORCH_HOME="fake_torch_dir"
+          python -m pip install pytest
+          python -m pytest . --durations=0
+
+      - name: Install nats_bench from pip with tests
+        run: |
+          pip uninstall -y nats_bench
+          python -m pip install nats_bench
+          export FAKE_TORCH_HOME="fake_torch_dir"
+          python -m pip install pytest
+          python -m pytest . --durations=0
